@@ -20,6 +20,9 @@ class CategorySeeder extends Seeder
             'Drama',
             'Heartfelt',
             'Mystery',
+            'Romance',
+            'Horror',
+            
         ];
 
         foreach ($categories as $category) {

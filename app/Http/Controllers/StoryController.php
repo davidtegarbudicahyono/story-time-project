@@ -213,7 +213,7 @@ class StoryController extends Controller
     /**      
      * Menampilkan cerita terbaru untuk indeks.      
      */      
-    public function newestStoryIndex()      
+    public function getLatestStories()      
     {      
         try {    
             $stories = Story::with(['images', 'categories', 'users'])    
@@ -237,7 +237,7 @@ class StoryController extends Controller
     /**    
      * Menampilkan cerita terbaru.    
      */    
-    public function getNewestStory()    
+    public function getNewestStories()    
     {    
         try {  
             $stories = Story::with(['images', 'categories', 'users'])  
@@ -317,5 +317,108 @@ class StoryController extends Controller
         }  
     }  
   
+    /**
+     * Menampilkan cerita populer berdasarkan jumlah bookmark.
+     */
+    public function getPopularStories()
+    {
+        try {
+            $stories = Story::with(['users', 'categories', 'images'])
+                ->orderBy('bookmarks_count', 'desc')
+                ->paginate(12);
+
+            if ($stories->isEmpty()) {
+                return response()->json(['message' => 'No popular stories available'], 404);
+            }
+
+            return response()->json([
+                'message' => 'Popular stories retrieved successfully',
+                'stories' => $stories,
+            ], 200);
+        } catch (Exception $e) {
+            Log::error('Error fetching popular stories: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to retrieve popular stories'], 500);
+        }
+    }
+
+    /**
+     * Menampilkan cerita serupa berdasarkan kategori.
+     */
+    public function getSimilarStories($storyId)
+    {
+        try {
+            $story = Story::find($storyId);
+
+            if (!$story) {
+                return response()->json(['message' => 'Story not found'], 404);
+            }
+
+            $similarStories = Story::with(['users', 'categories', 'images'])
+                ->where('category_id', $story->category_id)
+                ->where('id', '!=', $storyId)
+                ->orderBy('created_at', 'desc')
+                ->paginate(3);
+
+            if ($similarStories->isEmpty()) {
+                return response()->json(['message' => 'No similar stories available'], 404);
+            }
+
+            return response()->json([
+                'message' => 'Similar stories retrieved successfully',
+                'stories' => $similarStories,
+            ], 200);
+        } catch (Exception $e) {
+            Log::error('Error fetching similar stories: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to retrieve similar stories'], 500);
+        }
+    }
+
+    /**
+     * Menampilkan cerita diurutkan dari A-Z berdasarkan judul.
+     */
+    public function getStoriesAZ(Request $request)
+    {
+        try {
+            $stories = Story::with(['users', 'categories', 'images'])
+                ->orderBy('title', 'asc')
+                ->paginate(12);
+
+            if ($stories->isEmpty()) {
+                return response()->json(['message' => 'No stories found'], 404);
+            }
+
+            return response()->json([
+                'message' => 'Stories retrieved successfully',
+                'stories' => $stories,
+            ], 200);
+        } catch (Exception $e) {
+            Log::error('Error fetching stories A-Z: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to retrieve stories'], 500);
+        }
+    }
+
+    /**
+     * Menampilkan cerita diurutkan dari Z-A berdasarkan judul.
+     */
+    public function getStoriesZA(Request $request)
+    {
+        try {
+            $stories = Story::with(['users', 'categories', 'images'])
+                ->orderBy('title', 'desc')
+                ->paginate(12);
+
+            if ($stories->isEmpty()) {
+                return response()->json(['message' => 'No stories found'], 404);
+            }
+
+            return response()->json([
+                'message' => 'Stories retrieved successfully',
+                'stories' => $stories,
+            ], 200);
+        } catch (Exception $e) {
+            Log::error('Error fetching stories Z-A: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to retrieve stories'], 500);
+        }
+    }
   
 }  
