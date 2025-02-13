@@ -19,6 +19,9 @@ use App\Http\Controllers\CategoryController;
 |  
 */  
   
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
 
 Route::post('login', [UserController::class, 'login']); 
 Route::post('register', [UserController::class, 'register']);  
@@ -47,9 +50,9 @@ Route::get('stories/{id}', [StoryController::class, 'show']);
 Route::get('latest-stories', [StoryController::class, 'getLatestStories']);
 Route::get('newest-stories', [StoryController::class, 'getNewestStories']);
 Route::get('stories-by-category/{categoryId}', [StoryController::class, 'storiesByCategory']);
-Route::get('stories/PopularStories', [StoryController::class, 'getPopularStories']);
-Route::get('stories/similar-stories/{storyId}', [StoryController::class, 'getSimilarStories']);
-Route::get('stories/stories-a-z', [StoryController::class, 'getStoriesAZ']);
-Route::get('stories/stories-z-a', [StoryController::class, 'getStoriesZA']);
+Route::get('PopularStories', [StoryController::class, 'getPopularStories']);
+Route::get('similar-stories/{storyId}', [StoryController::class, 'getSimilarStories']);
+Route::get('stories-a-z', [StoryController::class, 'getStoriesAZ']);
+Route::get('stories-z-a', [StoryController::class, 'getStoriesZA']);
 
 

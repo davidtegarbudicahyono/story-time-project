@@ -14,20 +14,36 @@ class StoryController extends Controller
     /**    
      * Menampilkan daftar semua cerita.    
      */    
-    public function index()    
-    {    
-        try {  
-            $stories = Story::with(['users', 'categories', 'images'])->get();    
-    
-            return response()->json([    
-                'message' => 'Cerita berhasil diambil',    
-                'stories' => $stories,    
-            ], 200);    
-        } catch (Exception $e) {  
-            Log::error('Error fetching stories: ' . $e->getMessage());  
-            return response()->json(['message' => 'Failed to retrieve stories'], 500);  
-        }  
-    }    
+    public function index(Request $request)
+{
+    try {
+        // Ambil query pencarian dari request
+        $search = $request->query('search');
+
+        // Query stories dengan filter pencarian dan pagination
+        $stories = Story::with(['users', 'categories', 'images'])
+            ->when($search, function ($query) use ($search) {
+                $query->where('title', 'like', "%{$search}%");
+            })
+            ->paginate(12);
+
+        // Jika tidak ada cerita ditemukan
+        if ($stories->isEmpty()) {
+            return response()->json([
+                'message' => 'Tidak ada cerita yang ditemukan',
+                'stories' => []
+            ], 404);
+        }
+
+        return response()->json([
+            'message' => 'Cerita berhasil diambil',
+            'stories' => $stories,
+        ], 200);
+    } catch (Exception $e) {
+        Log::error('Error fetching stories: ' . $e->getMessage());
+        return response()->json(['message' => 'Failed to retrieve stories'], 500);
+    }
+}   
     
     /**          
      * Menyimpan cerita baru ke dalam database.          
@@ -84,68 +100,84 @@ class StoryController extends Controller
      * Memperbarui cerita berdasarkan ID.      
      */      
     public function update(Request $request, $id)      
-    {      
-        try {    
-            // Validasi data yang diterima  
-            $validatedData = $request->validate([              
-                'category_id' => 'sometimes|exists:categories,id',              
-                'title' => 'sometimes|string|max:255',              
-                'content' => 'sometimes|string',              
-                'content_images.*' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
-            ]);              
-            
-            // Cek apakah cerita ada  
-            $story = Story::find($id);      
-            if (!$story) {      
-                return response()->json([      
-                    'message' => 'Cerita tidak ditemukan',      
-                ], 404);      
-            }      
-    
-            // Update data cerita  
-            $story->update($validatedData);      
-    
-            // Menyimpan gambar baru jika ada  
-            if ($request->hasFile('content_images')) {  
-                // Cek jumlah gambar yang diunggah  
-                if (count($request->file('content_images')) > 5) {  
-                    return response()->json([  
-                        'message' => 'Maksimal 5 gambar dapat diunggah.'  
-                    ], 400);  
-                }  
-    
-                // Hapus gambar lama jika ada  
-                $oldImages = StoryImage::where('story_id', $story->id)->get();  
-                foreach ($oldImages as $oldImage) {  
-                    Storage::disk('public')->delete($oldImage->image_path);  
-                    $oldImage->delete();  
-                }  
-    
-                // Simpan gambar baru  
-                $images = []; // Array untuk menyimpan informasi gambar        
-                foreach ($request->file('content_images') as $image) {              
-                    // Simpan dengan nama file asli      
-                    $originalName = $image->getClientOriginalName();      
-                    $path = $image->storeAs('content_images', $originalName, 'public');     
-                        
-                    $storyImage = StoryImage::create([              
-                        'story_id' => $story->id,              
-                        'image_path' => $path,              
-                    ]);        
-                    $images[] = $storyImage; // Tambahkan gambar ke array        
-                }              
+{      
+    try {    
+        // Validasi data yang diterima  
+        $validatedData = $request->validate([              
+            'category_id' => 'sometimes|exists:categories,id',              
+            'title' => 'sometimes|string|max:255',              
+            'content' => 'sometimes|string',              
+            'content_images.*' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
+            'remove_images' => 'sometimes|array',  
+            'remove_images.*' => 'integer|exists:story_images,id',
+        ]);              
+        
+        // Cek apakah cerita ada  
+        $story = Story::find($id);      
+        if (!$story) {      
+            return response()->json([      
+                'message' => 'Cerita tidak ditemukan',      
+            ], 404);      
+        }      
+
+        // Hapus gambar tertentu jika ada permintaan
+        if ($request->has('remove_images')) {
+            $removeImages = $request->remove_images;
+
+            foreach ($removeImages as $imageId) {
+                $storyImage = StoryImage::where('id', $imageId)->where('story_id', $story->id)->first();
+                
+                if ($storyImage) {
+                    Storage::disk('public')->delete($storyImage->image_path); // Hapus file dari storage
+                    $storyImage->delete(); // Hapus dari database
+                }
+            }
+        }
+
+        // Hitung jumlah gambar yang sudah ada di database
+        $currentImageCount = StoryImage::where('story_id', $story->id)->count();
+
+        // Jika ada gambar baru yang diunggah, cek apakah jumlah totalnya akan melebihi 5
+        if ($request->hasFile('content_images')) {  
+            $newImageCount = count($request->file('content_images'));
+
+            // Jika total gambar lebih dari 5, kembalikan error
+            if (($currentImageCount + $newImageCount) > 5) {  
+                return response()->json([  
+                    'message' => 'Total gambar tidak boleh lebih dari 5. Ada ' . $currentImageCount . ' gambar saat ini.'  
+                ], 400);  
             }  
-    
-            return response()->json([              
-                'message' => 'Cerita berhasil diperbarui',              
-                'story' => $story,              
-                'images' => isset($images) ? $images : [], // Sertakan gambar baru dalam respons        
-            ], 200);              
-        } catch (Exception $e) {    
-            Log::error('Error updating story: ' . $e->getMessage());    
-            return response()->json(['message' => 'Failed to update story'], 500);    
-        }    
-    }  
+
+            // Simpan gambar baru
+            $images = [];  
+            foreach ($request->file('content_images') as $image) {              
+                $originalName = $image->getClientOriginalName();      
+                $path = $image->storeAs('content_images', $originalName, 'public');     
+
+                $storyImage = StoryImage::create([              
+                    'story_id' => $story->id,              
+                    'image_path' => $path,              
+                ]);        
+                $images[] = $storyImage;        
+            }              
+        }  
+
+        // Update data cerita  
+        $story->update($validatedData);      
+
+        return response()->json([              
+            'message' => 'Cerita berhasil diperbarui',              
+            'story' => $story,              
+            'images' => StoryImage::where('story_id', $story->id)->get()       
+        ], 200);              
+
+    } catch (Exception $e) {    
+        Log::error('Error updating story: ' . $e->getMessage());    
+        return response()->json(['message' => 'Failed to update story'], 500);    
+    }    
+}
+
+  
 
     
     /**    
@@ -323,7 +355,8 @@ class StoryController extends Controller
     public function getPopularStories()
     {
         try {
-            $stories = Story::with(['users', 'categories', 'images'])
+            $stories = Story::with(['users'])
+                ->withCount('bookmarks') // Hitung jumlah bookmark
                 ->orderBy('bookmarks_count', 'desc')
                 ->paginate(12);
 
