@@ -15,35 +15,35 @@ class StoryController extends Controller
      * Menampilkan daftar semua cerita.    
      */    
     public function index(Request $request)
-{
-    try {
-        // Ambil query pencarian dari request
-        $search = $request->query('search');
+    {
+        try {
+            // Ambil query pencarian dari request
+            $search = $request->query('search');
 
-        // Query stories dengan filter pencarian dan pagination
-        $stories = Story::with(['users', 'categories', 'images'])
-            ->when($search, function ($query) use ($search) {
-                $query->where('title', 'like', "%{$search}%");
-            })
-            ->paginate(12);
+            // Query stories dengan filter pencarian dan pagination
+            $stories = Story::with(['users', 'categories', 'images'])
+                ->when($search, function ($query) use ($search) {
+                    $query->where('title', 'like', "%{$search}%");
+                })
+                ->paginate(12);
 
-        // Jika tidak ada cerita ditemukan
-        if ($stories->isEmpty()) {
+            // Jika tidak ada cerita ditemukan
+            if ($stories->isEmpty()) {
+                return response()->json([
+                    'message' => 'Tidak ada cerita yang ditemukan',
+                    'stories' => []
+                ], 404);
+            }
+
             return response()->json([
-                'message' => 'Tidak ada cerita yang ditemukan',
-                'stories' => []
-            ], 404);
+                'message' => 'Cerita berhasil diambil',
+                'stories' => $stories,
+            ], 200);
+        } catch (Exception $e) {
+            Log::error('Error fetching stories: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to retrieve stories'], 500);
         }
-
-        return response()->json([
-            'message' => 'Cerita berhasil diambil',
-            'stories' => $stories,
-        ], 200);
-    } catch (Exception $e) {
-        Log::error('Error fetching stories: ' . $e->getMessage());
-        return response()->json(['message' => 'Failed to retrieve stories'], 500);
-    }
-}   
+    }   
     
     /**          
      * Menyimpan cerita baru ke dalam database.          

@@ -17,22 +17,30 @@ class BookmarkController extends Controller
     public function index()
     {
         try {
-            $user = Auth::user();
+            $user = auth()->user();
+    
             if (!$user) {
                 return response()->json(['message' => 'User not authenticated'], 401);
             }
-
-            $bookmarks = Bookmark::where('user_id', $user->id)->with('story')->get();
-
+    
+            $stories = Bookmark::where('user_id', $user->id)
+                ->with('story.images', 'story.categories', 'story.users')
+                ->paginate(4);
+    
+            if ($stories->isEmpty()) {
+                return response()->json(['message' => 'No stories found'], 404);
+            }
+    
             return response()->json([
-                'message' => 'Bookmarks retrieved successfully.',
-                'data' => $bookmarks,
+                'status' => true,
+                'data' => $stories,
             ], 200);
         } catch (Exception $e) {
             Log::error('Error retrieving bookmarks: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to retrieve bookmarks'], 500);
+            return response()->json(['message' => 'Failed to retrieve stories'], 500);
         }
     }
+    
 
     /**
      * Menyimpan bookmark baru
