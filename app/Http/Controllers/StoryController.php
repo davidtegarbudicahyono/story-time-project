@@ -129,7 +129,7 @@ class StoryController extends Controller
                 
                 if ($storyImage) {
                     Storage::disk('public')->delete($storyImage->image_path); // Hapus file dari storage
-                    $storyImage->delete(); // Hapus dari database
+                    $storyImage->delete();
                 }
             }
         }
@@ -356,7 +356,7 @@ class StoryController extends Controller
     {
         try {
             $stories = Story::with(['users'])
-                ->withCount('bookmarks') // Hitung jumlah bookmark
+                ->withCount('bookmarks') 
                 ->orderBy('bookmarks_count', 'desc')
                 ->paginate(12);
 

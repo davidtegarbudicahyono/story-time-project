@@ -117,11 +117,9 @@ class UserController extends Controller
     
         $user = $request->user();
     
-        // Update nama dan about
         $user->name = $request->name;
         $user->about = $request->about;
     
-        // Jika ingin mengganti password
         if ($request->filled('old_password') || $request->filled('new_password')) {
             if (!Hash::check($request->old_password, $user->password)) {
                 return response()->json([
@@ -138,7 +136,7 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => $user,
+            'user' => $user,
             ],
             'message' => 'Profile updated successfully.',
         ], 200);
@@ -178,7 +176,7 @@ class UserController extends Controller
             'success' => true,
             'data' => [
                 'user' => $user,
-                'profile_image_url' => 'https://7820-103-100-175-121.ngrok-free.app/storage/' . $user->profile_image,
+                'profile_image_url' => 'https://8243-2404-c0-3827-450e-e43b-5c8f-3eda-3999.ngrok-free.app/storage/' . $user->profile_image,
             ],
             'message' => 'Profile image updated successfully.',
         ], 200);
