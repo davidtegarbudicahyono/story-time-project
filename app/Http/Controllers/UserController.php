@@ -176,7 +176,7 @@ class UserController extends Controller
             'success' => true,
             'data' => [
                 'user' => $user,
-                'profile_image_url' => 'https://8243-2404-c0-3827-450e-e43b-5c8f-3eda-3999.ngrok-free.app/storage/' . $user->profile_image,
+                'profile_image_url' => $user->profile_image,
             ],
             'message' => 'Profile image updated successfully.',
         ], 200);
